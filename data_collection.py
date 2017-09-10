@@ -18,10 +18,10 @@ YOUTUBE_API_VERSION=config.get('YOUTUBE_API','version')
 BASE_URL = 'https://www.googleapis.com/youtube/v3/videos?part=contentDetails,statistics,snippet&id='
 
 # popular videos based on search parameter
-def get_popular_ids(options):
+def get_popular_ids(term):
 	youtube = build('youtube', YOUTUBE_API_VERSION, developerKey=DEVELOPER_KEY)
 	results = youtube.search().list(
-			q=options.q,
+			q=term,
 			maxResults=50,
 			part='id',
 			publishedAfter=datetime.datetime.now().replace(day=datetime.datetime.now().day-1).isoformat('T') + 'Z'
@@ -33,8 +33,8 @@ def get_popular_ids(options):
 
 
 
-def get_video_data(options):
-	video_ids = get_popular_ids(options)	# list of video ids
+def get_video_data(term):
+	video_ids = get_popular_ids(term)	# list of video ids
 	video_ids_string = ','.join(video_ids)
 
 	resp = requests.get(BASE_URL + video_ids_string + '&key=' + DEVELOPER_KEY)
@@ -66,19 +66,3 @@ def get_video_data(options):
 					else None,
 		'viewCount': int(i['statistics']['viewCount'])
 	} for i in json_data]
-	
-
-
-
-
-if __name__=='__main__':
-	argparser.add_argument('--q', help='search term', default='landslide')
-	args = argparser.parse_args()
-
-	try:
-		video_data = get_video_data(args)
-		for i in sorted(video_data, key=lambda k: k['viewCount'], reverse=True)[:10]:
-			print i['title'], '   |    ', i['viewCount']
-
-	except HttpError, e:
-		print "Experienced error", e
