@@ -4,10 +4,15 @@ from oauth2client.tools import argparser
 import requests
 import json
 import datetime
-from operator import attrgetter
+import operator
+import ConfigParser
 
-DEVELOPER_KEY='AIzaSyCf8XJ0p65S6iWzLvj0-WhnOa3bsUuq3Ac'
-YOUTUBE_API_VERSION='v3'
+# abstraction of the api keys
+config = ConfigParser.ConfigParser()
+config.read('app.ini')
+
+DEVELOPER_KEY=config.get('YOUTUBE_API','developer_key')
+YOUTUBE_API_VERSION=config.get('YOUTUBE_API','version')
 
 
 BASE_URL = 'https://www.googleapis.com/youtube/v3/videos?part=contentDetails,statistics,snippet&id='
@@ -17,7 +22,7 @@ def get_popular_ids(options):
 	youtube = build('youtube', YOUTUBE_API_VERSION, developerKey=DEVELOPER_KEY)
 	results = youtube.search().list(
 			q=options.q,
-			maxResults=options.n,
+			maxResults=50,
 			part='id',
 			publishedAfter=datetime.datetime.now().replace(day=datetime.datetime.now().day-1).isoformat('T') + 'Z'
 			).execute().get('items')
@@ -50,16 +55,16 @@ def get_video_data(options):
 				if 'tags' in i['snippet'] 
 				else None,
 		'thumbnails': i['snippet']['thumbnails'],
-		'commentCount': i['statistics']['commentCount'] 
+		'commentCount': int(i['statistics']['commentCount'])
 					if 'commentCount' in i['statistics'] 
 					else None,
-		'dislikeCount': i['statistics']['dislikeCount'] 
+		'dislikeCount': int(i['statistics']['dislikeCount']) 
 					if 'dislikeCount' in i['statistics'] 
 					else None,
-		'likeCount': i['statistics']['likeCount'] 
+		'likeCount': int(i['statistics']['likeCount']) 
 					if 'likeCount' in i['statistics'] 
 					else None,
-		'viewCount': i['statistics']['viewCount']
+		'viewCount': int(i['statistics']['viewCount'])
 	} for i in json_data]
 	
 
@@ -67,15 +72,13 @@ def get_video_data(options):
 
 
 if __name__=='__main__':
-	argparser.add_argument('--q', help='search term', default='Rick Ross')
-	argparser.add_argument('--n', help='num results', default=50)
+	argparser.add_argument('--q', help='search term', default='landslide')
 	args = argparser.parse_args()
 
 	try:
 		video_data = get_video_data(args)
-
-		for item in sorted(video_data,reverse=True, key=lambda k: k['viewCount']):
-			print item['viewCount']
+		for i in sorted(video_data, key=lambda k: k['viewCount'], reverse=True)[:10]:
+			print i['title'], '   |    ', i['viewCount']
 
 	except HttpError, e:
 		print "Experienced error", e
